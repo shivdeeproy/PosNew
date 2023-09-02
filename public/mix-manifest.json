@@ -41,5 +41,8 @@
     "/js/skins/ui/oxide-dark/skin.mobile.css": "/js/skins/ui/oxide-dark/skin.mobile.css",
     "/js/skins/ui/oxide-dark/skin.mobile.min.css": "/js/skins/ui/oxide-dark/skin.mobile.min.css",
     "/js/skins/ui/oxide-dark/skin.shadowdom.css": "/js/skins/ui/oxide-dark/skin.shadowdom.css",
-    "/js/skins/ui/oxide-dark/skin.shadowdom.min.css": "/js/skins/ui/oxide-dark/skin.shadowdom.min.css"
+    "/js/skins/ui/oxide-dark/skin.shadowdom.min.css": "/js/skins/ui/oxide-dark/skin.shadowdom.min.css",
+    "/js/icons/default/icons.js": "/js/icons/default/icons.js",
+    "/js/icons/default/icons.min.js": "/js/icons/default/icons.min.js",
+    "/js/icons/default/index.js": "/js/icons/default/index.js"
 }

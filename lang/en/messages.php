@@ -12,8 +12,6 @@ return [
     */
 
     'add' => 'Add',
-    'save_and_credit_note'=>'Save And Credit Note',
-    'save_and_debit_note'=>'Save And Debit Note',
     'edit' => 'Edit',
     'save' => 'Save',
     'update' => 'Update',

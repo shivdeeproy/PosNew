@@ -171,7 +171,7 @@ return array (
   'internationalPrefix' => '00|1(?:[12]\\d|79)\\d\\d00',
   'preferredInternationalPrefix' => '00',
   'nationalPrefix' => '0',
-  'nationalPrefixForParsing' => '(1(?:[12]\\d|79)\\d\\d)|0',
+  'nationalPrefixForParsing' => '0|(1(?:[12]\\d|79)\\d\\d)',
   'sameMobileAndFixedLinePattern' => false,
   'numberFormat' => 
   array (

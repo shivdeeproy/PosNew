@@ -45,7 +45,10 @@ class LazyObjectRegistry
      */
     public static $parentMethods = [];
 
-    public static ?\Closure $noInitializerState = null;
+    /**
+     * @var LazyObjectState
+     */
+    public static $noInitializerState;
 
     public static function getClassResetters($class)
     {

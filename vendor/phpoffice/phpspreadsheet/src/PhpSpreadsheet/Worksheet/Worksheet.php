@@ -13,7 +13,6 @@ use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\Cell\Hyperlink;
-use PhpOffice\PhpSpreadsheet\Cell\IValueBinder;
 use PhpOffice\PhpSpreadsheet\Chart\Chart;
 use PhpOffice\PhpSpreadsheet\Collection\Cells;
 use PhpOffice\PhpSpreadsheet\Collection\CellsFactory;
@@ -25,7 +24,6 @@ use PhpOffice\PhpSpreadsheet\ReferenceHelper;
 use PhpOffice\PhpSpreadsheet\RichText\RichText;
 use PhpOffice\PhpSpreadsheet\Shared;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Color;
 use PhpOffice\PhpSpreadsheet\Style\Conditional;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
@@ -37,8 +35,6 @@ class Worksheet implements IComparable
     public const BREAK_NONE = 0;
     public const BREAK_ROW = 1;
     public const BREAK_COLUMN = 2;
-    // Maximum column for row break
-    public const BREAK_ROW_MAX_COLUMN = 16383;
 
     // Sheet state
     public const SHEETSTATE_VISIBLE = 'visible';
@@ -192,18 +188,11 @@ class Worksheet implements IComparable
     private $conditionalStylesCollection = [];
 
     /**
-     * Collection of row breaks.
+     * Collection of breaks.
      *
-     * @var PageBreak[]
+     * @var int[]
      */
-    private $rowBreaks = [];
-
-    /**
-     * Collection of column breaks.
-     *
-     * @var PageBreak[]
-     */
-    private $columnBreaks = [];
+    private $breaks = [];
 
     /**
      * Collection of merged cell ranges.
@@ -744,7 +733,14 @@ class Worksheet implements IComparable
                 }
             }
 
-            $autoFilterIndentRanges = (new AutoFit($this))->getAutoFilterIndentRanges();
+            $autoFilterRange = $autoFilterFirstRowRange = $this->autoFilter->getRange();
+            if (!empty($autoFilterRange)) {
+                $autoFilterRangeBoundaries = Coordinate::rangeBoundaries($autoFilterRange);
+                $autoFilterFirstRowRange = (string) new CellRange(
+                    CellAddress::fromColumnAndRow($autoFilterRangeBoundaries[0][0], $autoFilterRangeBoundaries[0][1]),
+                    CellAddress::fromColumnAndRow($autoFilterRangeBoundaries[1][0], $autoFilterRangeBoundaries[0][1])
+                );
+            }
 
             // loop through all cells in the worksheet
             foreach ($this->getCoordinates(false) as $coordinate) {
@@ -771,18 +767,11 @@ class Worksheet implements IComparable
                         // Determine if we need to make an adjustment for the first row in an AutoFilter range that
                         //    has a column filter dropdown
                         $filterAdjustment = false;
-                        if (!empty($autoFilterIndentRanges)) {
-                            foreach ($autoFilterIndentRanges as $autoFilterFirstRowRange) {
-                                if ($cell->isInRange($autoFilterFirstRowRange)) {
-                                    $filterAdjustment = true;
-
-                                    break;
-                                }
-                            }
+                        if (!empty($autoFilterRange) && $cell->isInRange($autoFilterFirstRowRange)) {
+                            $filterAdjustment = true;
                         }
 
                         $indentAdjustment = $cell->getStyle()->getAlignment()->getIndent();
-                        $indentAdjustment += (int) ($cell->getStyle()->getAlignment()->getHorizontal() === Alignment::HORIZONTAL_CENTER);
 
                         // Calculated value
                         // To formatted string
@@ -794,18 +783,15 @@ class Worksheet implements IComparable
 
                         if ($cellValue !== null && $cellValue !== '') {
                             $autoSizes[$this->cellCollection->getCurrentColumn()] = max(
-                                $autoSizes[$this->cellCollection->getCurrentColumn()],
-                                round(
-                                    Shared\Font::calculateColumnWidth(
-                                        $this->getParentOrThrow()->getCellXfByIndex($cell->getXfIndex())->getFont(),
-                                        $cellValue,
-                                        (int) $this->getParentOrThrow()->getCellXfByIndex($cell->getXfIndex())
-                                            ->getAlignment()->getTextRotation(),
-                                        $this->getParentOrThrow()->getDefaultStyle()->getFont(),
-                                        $filterAdjustment,
-                                        $indentAdjustment
-                                    ),
-                                    3
+                                (float) $autoSizes[$this->cellCollection->getCurrentColumn()],
+                                (float) Shared\Font::calculateColumnWidth(
+                                    $this->getParentOrThrow()->getCellXfByIndex($cell->getXfIndex())->getFont(),
+                                    $cellValue,
+                                    (int) $this->getParentOrThrow()->getCellXfByIndex($cell->getXfIndex())
+                                        ->getAlignment()->getTextRotation(),
+                                    $this->getParentOrThrow()->getDefaultStyle()->getFont(),
+                                    $filterAdjustment,
+                                    $indentAdjustment
                                 )
                             );
                         }
@@ -1160,14 +1146,13 @@ class Worksheet implements IComparable
      * @param array<int>|CellAddress|string $coordinate Coordinate of the cell as a string, eg: 'C5';
      *               or as an array of [$columnIndex, $row] (e.g. [3, 5]), or a CellAddress object.
      * @param mixed $value Value for the cell
-     * @param null|IValueBinder $binder Value Binder to override the currently set Value Binder
      *
      * @return $this
      */
-    public function setCellValue($coordinate, $value, ?IValueBinder $binder = null)
+    public function setCellValue($coordinate, $value)
     {
         $cellAddress = Functions::trimSheetFromCellReference(Validations::validateCellAddress($coordinate));
-        $this->getCell($cellAddress)->setValue($value, $binder);
+        $this->getCell($cellAddress)->setValue($value);
 
         return $this;
     }
@@ -1183,13 +1168,12 @@ class Worksheet implements IComparable
      * @param int $columnIndex Numeric column coordinate of the cell
      * @param int $row Numeric row coordinate of the cell
      * @param mixed $value Value of the cell
-     * @param null|IValueBinder $binder Value Binder to override the currently set Value Binder
      *
      * @return $this
      */
-    public function setCellValueByColumnAndRow($columnIndex, $row, $value, ?IValueBinder $binder = null)
+    public function setCellValueByColumnAndRow($columnIndex, $row, $value)
     {
-        $this->getCell(Coordinate::stringFromColumnIndex($columnIndex) . $row)->setValue($value, $binder);
+        $this->getCell(Coordinate::stringFromColumnIndex($columnIndex) . $row)->setValue($value);
 
         return $this;
     }
@@ -1764,16 +1748,16 @@ class Worksheet implements IComparable
      *
      * @return $this
      */
-    public function setBreak($coordinate, $break, int $max = -1)
+    public function setBreak($coordinate, $break)
     {
         $cellAddress = Functions::trimSheetFromCellReference(Validations::validateCellAddress($coordinate));
 
         if ($break === self::BREAK_NONE) {
-            unset($this->rowBreaks[$cellAddress], $this->columnBreaks[$cellAddress]);
-        } elseif ($break === self::BREAK_ROW) {
-            $this->rowBreaks[$cellAddress] = new PageBreak($break, $cellAddress, $max);
-        } elseif ($break === self::BREAK_COLUMN) {
-            $this->columnBreaks[$cellAddress] = new PageBreak($break, $cellAddress, $max);
+            if (isset($this->breaks[$cellAddress])) {
+                unset($this->breaks[$cellAddress]);
+            }
+        } else {
+            $this->breaks[$cellAddress] = $break;
         }
 
         return $this;
@@ -1805,35 +1789,7 @@ class Worksheet implements IComparable
      */
     public function getBreaks()
     {
-        $breaks = [];
-        foreach ($this->rowBreaks as $break) {
-            $breaks[$break->getCoordinate()] = self::BREAK_ROW;
-        }
-        foreach ($this->columnBreaks as $break) {
-            $breaks[$break->getCoordinate()] = self::BREAK_COLUMN;
-        }
-
-        return $breaks;
-    }
-
-    /**
-     * Get row breaks.
-     *
-     * @return PageBreak[]
-     */
-    public function getRowBreaks()
-    {
-        return $this->rowBreaks;
-    }
-
-    /**
-     * Get row breaks.
-     *
-     * @return PageBreak[]
-     */
-    public function getColumnBreaks()
-    {
-        return $this->columnBreaks;
+        return $this->breaks;
     }
 
     /**

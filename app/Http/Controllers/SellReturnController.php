@@ -269,10 +269,8 @@ class SellReturnController extends Controller
             abort(403, 'Unauthorized action.');
         }
 
-
         try {
             $input = $request->except('_token');
-
 
             if (! empty($input['products'])) {
                 $business_id = $request->session()->get('user.business_id');
@@ -289,23 +287,6 @@ class SellReturnController extends Controller
                 $sell_return = $this->transactionUtil->addSellReturn($input, $business_id, $user_id);
 
                 $receipt = $this->receiptContent($business_id, $sell_return->location_id, $sell_return->id);
-
-                // if(isset($request->save_and_credit)):
-
-                //     $contact_id=$sell_return->contact_id;
-
-                //     if($contact_id && $sell_return->final_total):
-
-                //         $customer=Contact::find($contact_id);
-
-                //         $customer->balance=$customer->balance+$sell_return->final_total;
-
-                //         $customer->save();
-
-                //     endif;
-
-
-                // endif;
 
                 DB::commit();
 

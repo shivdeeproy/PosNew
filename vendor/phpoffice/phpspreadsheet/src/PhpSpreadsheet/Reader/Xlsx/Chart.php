@@ -402,7 +402,6 @@ class Chart
     {
         $caption = [];
         $titleLayout = null;
-        $titleOverlay = false;
         foreach ($titleDetails as $titleDetailKey => $chartDetail) {
             $chartDetail = Xlsx::testSimpleXml($chartDetail);
             switch ($titleDetailKey) {
@@ -426,10 +425,6 @@ class Chart
                     }
 
                     break;
-                case 'overlay':
-                    $titleOverlay = self::getAttribute($chartDetail, 'val', 'boolean');
-
-                    break;
                 case 'layout':
                     $titleLayout = $this->chartLayoutDetails($chartDetail);
 
@@ -437,7 +432,7 @@ class Chart
             }
         }
 
-        return new Title($caption, $titleLayout, (bool) $titleOverlay);
+        return new Title($caption, $titleLayout);
     }
 
     private function chartLayoutDetails(SimpleXMLElement $chartDetail): ?Layout

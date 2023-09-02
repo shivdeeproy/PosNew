@@ -10,9 +10,6 @@ return [
     | The following language lines are used for Product related operations.
     |
     */
-      'default_mrp_price'=>'MRP',
-    'discount'=> 'x Discount(%)',
-   
 
     'exc_of_tax' => 'Exc. tax',
     'inc_of_tax' => 'Inc. tax',

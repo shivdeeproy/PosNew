@@ -51,11 +51,10 @@ abstract class BaseReader implements IReader
      */
     protected $readFilter;
 
-    /** @var resource */
     protected $fileHandle;
 
     /**
-     * @var ?XmlScanner
+     * @var XmlScanner
      */
     protected $securityScanner;
 
@@ -135,17 +134,8 @@ abstract class BaseReader implements IReader
         return $this;
     }
 
-    public function getSecurityScanner(): ?XmlScanner
+    public function getSecurityScanner()
     {
-        return $this->securityScanner;
-    }
-
-    public function getSecurityScannerOrThrow(): XmlScanner
-    {
-        if ($this->securityScanner === null) {
-            throw new ReaderException('Security scanner is unexpectedly null');
-        }
-
         return $this->securityScanner;
     }
 

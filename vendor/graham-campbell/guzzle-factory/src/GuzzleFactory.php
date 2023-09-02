@@ -35,33 +35,33 @@ final class GuzzleFactory
      *
      * @var int
      */
-    private const CONNECT_TIMEOUT = 10;
+    const CONNECT_TIMEOUT = 10;
 
     /**
      * The default transport timeout.
      *
      * @var int
      */
-    private const TIMEOUT = 15;
+    const TIMEOUT = 15;
 
     /**
      * The default backoff multiplier.
      *
      * @var int
      */
-    private const BACKOFF = 1000;
+    const BACKOFF = 1000;
 
     /**
      * The default 4xx retry codes.
      *
      * @var int[]
      */
-    private const CODES = [429];
+    const CODES = [429];
 
     /**
      * The default amount of retries.
      */
-    private const RETRIES = 3;
+    const RETRIES = 3;
 
     /**
      * Create a new guzzle client.
@@ -73,12 +73,8 @@ final class GuzzleFactory
      *
      * @return \GuzzleHttp\Client
      */
-    public static function make(
-        array $options = [],
-        int $backoff = null,
-        array $codes = null,
-        int $retries = null
-    ): Client {
+    public static function make(array $options = [], int $backoff = null, array $codes = null, int $retries = null)
+    {
         $config = array_merge(['connect_timeout' => self::CONNECT_TIMEOUT, 'timeout' => self::TIMEOUT], $options);
         $config['handler'] = self::handler($backoff, $codes, $retries, $options['handler'] ?? null);
 
@@ -95,12 +91,8 @@ final class GuzzleFactory
      *
      * @return \GuzzleHttp\HandlerStack
      */
-    public static function handler(
-        int $backoff = null,
-        array $codes = null,
-        int $retries = null,
-        HandlerStack $stack = null
-    ): HandlerStack {
+    public static function handler(int $backoff = null, array $codes = null, int $retries = null, HandlerStack $stack = null)
+    {
         $stack = $stack ?? self::innerHandler();
 
         if ($retries === 0) {
@@ -119,9 +111,8 @@ final class GuzzleFactory
      *
      * @return \GuzzleHttp\HandlerStack
      */
-    public static function innerHandler(
-        callable $handler = null
-    ): HandlerStack {
+    public static function innerHandler(callable $handler = null): HandlerStack
+    {
         $stack = new HandlerStack($handler ?? Utils::chooseHandler());
 
         $stack->push(Middleware::httpErrors(new BodySummarizer(250)), 'http_errors');
@@ -141,11 +132,8 @@ final class GuzzleFactory
      *
      * @return callable
      */
-    private static function createRetryMiddleware(
-        int $backoff,
-        array $codes,
-        int $maxRetries
-    ): callable {
+    private static function createRetryMiddleware(int $backoff, array $codes, int $maxRetries): callable
+    {
         return Middleware::retry(function ($retries, RequestInterface $request, ResponseInterface $response = null, TransferException $exception = null) use ($codes, $maxRetries) {
             return $retries < $maxRetries && ($exception instanceof ConnectException || ($response && ($response->getStatusCode() >= 500 || in_array($response->getStatusCode(), $codes, true))));
         }, function ($retries) use ($backoff) {

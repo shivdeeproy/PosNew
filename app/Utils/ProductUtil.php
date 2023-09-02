@@ -36,7 +36,7 @@ class ProductUtil extends Util
      * @param $combo_variations = []
      * @return bool
      */
-    public function createSingleProductVariation($product, $sku, $purchase_price, $dpp_inc_tax, $profit_percent, $selling_price, $selling_price_inc_tax, $combo_variations = [],$mrp_exc_tax='',$mrp_inc_tax='',$discount='')
+    public function createSingleProductVariation($product, $sku, $purchase_price, $dpp_inc_tax, $profit_percent, $selling_price, $selling_price_inc_tax, $combo_variations = [])
     {
         if (! is_object($product)) {
             $product = Product::find($product);
@@ -60,9 +60,6 @@ class ProductUtil extends Util
             'default_sell_price' => $this->num_uf($selling_price),
             'sell_price_inc_tax' => $this->num_uf($selling_price_inc_tax),
             'combo_variations' => $combo_variations,
-            'discount'=>$this->num_uf($discount),
-               'mrp_exc_tax'=>$this->num_uf($mrp_exc_tax),
-                'mrp_inc_tax'=>$this->num_uf($mrp_inc_tax),
         ];
         $variation = $product_variation->variations()->create($variation_data);
 
@@ -170,10 +167,6 @@ class ProductUtil extends Util
                         'profit_percent' => $this->num_uf($v['profit_percent']),
                         'default_sell_price' => $this->num_uf($v['default_sell_price']),
                         'sell_price_inc_tax' => $this->num_uf($v['sell_price_inc_tax']),
-                        'mrp_inc_tax'=>$this->num_uf($v['mrp_inc_tax']),
-                        'mrp_exc_tax'=>$this->num_uf($v['mrp_exc_tax']),
-                        'discount'=>$this->num_uf($v['discount']),
-
                     ];
                     $c++;
                     $images[] = 'variation_images_'.$key.'_'.$k;
@@ -221,9 +214,6 @@ class ProductUtil extends Util
                         'profit_percent' => $this->num_uf($v['profit_percent']),
                         'default_sell_price' => $this->num_uf($v['default_sell_price']),
                         'sell_price_inc_tax' => $this->num_uf($v['sell_price_inc_tax']),
-                         'mrp_inc_tax'=>$this->num_uf($v['mrp_inc_tax']),
-                        'mrp_exc_tax'=>$this->num_uf($v['mrp_exc_tax']),
-                        'discount'=>$this->num_uf($v['discount']),
                     ];
                     if (! empty($v['sub_sku'])) {
                         $data['sub_sku'] = $v['sub_sku'];
@@ -277,9 +267,6 @@ class ProductUtil extends Util
                         'profit_percent' => $this->num_uf($v['profit_percent']),
                         'default_sell_price' => $this->num_uf($v['default_sell_price']),
                         'sell_price_inc_tax' => $this->num_uf($v['sell_price_inc_tax']),
-                         'mrp_inc_tax'=>$this->num_uf($v['mrp_inc_tax']),
-                        'mrp_exc_tax'=>$this->num_uf($v['mrp_exc_tax']),
-                        'discount'=>$this->num_uf($v['discount']),
                     ];
                     $c++;
                     $media[] = 'variation_images_'.$key.'_'.$k;
@@ -510,16 +497,33 @@ class ProductUtil extends Util
             'p.type as product_type',
             'p.name as product_actual_name',
             'p.warranty_id',
+            'p.product_custom_field1',
+            'p.product_custom_field2',
+            'p.product_custom_field3',
+            'p.product_custom_field4',
+            'p.product_custom_field5',
+            'p.product_custom_field6',
+            'p.product_custom_field7',
+            'p.product_custom_field8',
+            'p.product_custom_field9',
+            'p.product_custom_field10',
+            'p.product_custom_field11',
+            'p.product_custom_field12',
+            'p.product_custom_field13',
+            'p.product_custom_field14',
+            'p.product_custom_field15',
+            'p.product_custom_field16',
+            'p.product_custom_field17',
+            'p.product_custom_field18',
+            'p.product_custom_field19',
+            'p.product_custom_field20',
             'pv.name as product_variation_name',
             'pv.is_dummy as is_dummy',
             'variations.name as variation_name',
-            'variations.mrp_inc_tax',
-            'variations.discount',
             'variations.sub_sku',
             'p.barcode_type',
             'vld.qty_available',
             'variations.default_sell_price',
-            'variations.dpp_inc_tax as default_purchase_price_inc_tax', 
             'variations.sell_price_inc_tax',
             'variations.id as variation_id',
             'variations.combo_variations',  //Used in combo products
@@ -529,12 +533,7 @@ class ProductUtil extends Util
             'u.short_name as second_unit',
             'brands.name as brand',
             DB::raw('(SELECT purchase_price_inc_tax FROM purchase_lines WHERE 
-                        variation_id=variations.id ORDER BY id DESC LIMIT 1) as last_purchased_price'),
-            DB::raw('(SELECT purchase_price FROM purchase_lines WHERE 
-                        variation_id=variations.id ORDER BY id DESC LIMIT 1) as last_purchased_price_exc_tax'),
-
-            DB::raw('(SELECT tax_id FROM purchase_lines WHERE 
-                        variation_id=variations.id ORDER BY id DESC LIMIT 1) as last_purchased_tax_id')
+                        variation_id=variations.id ORDER BY id DESC LIMIT 1) as last_purchased_price')
         )
         ->firstOrFail();
 
@@ -1027,10 +1026,18 @@ class ProductUtil extends Util
      */
     public function getVariationGroupPrice($variation_id, $price_group_id, $tax_id)
     {
-        $price_inc_tax =
-        VariationGroupPrice::where('variation_id', $variation_id)
+        $price_group = VariationGroupPrice::where('variation_id', $variation_id)
                         ->where('price_group_id', $price_group_id)
-                        ->value('price_inc_tax');
+                        ->select(['price_inc_tax', 'price_type'])
+                        ->first();
+
+        if(isset($price_group->price_type) && $price_group->price_type == 'percentage'){
+            //calculate the price
+            $variation = Variation::find($variation_id);
+            $price_inc_tax = $this->calc_percentage($variation->sell_price_inc_tax, $price_group->price_inc_tax);
+        } else {
+            $price_inc_tax = $price_group->price_inc_tax;
+        }
 
         $price_exc_tax = $price_inc_tax;
         if (! empty($price_inc_tax) && ! empty($tax_id)) {
@@ -1163,7 +1170,6 @@ class ProductUtil extends Util
      */
     public function createOrUpdatePurchaseLines($transaction, $input_data, $currency_details, $enable_product_editing, $before_status = null)
     {
-       
         $updated_purchase_lines = [];
         $updated_purchase_line_ids = [0];
         $exchange_rate = ! empty($transaction->exchange_rate) ? $transaction->exchange_rate : 1;
@@ -1214,12 +1220,6 @@ class ProductUtil extends Util
             $purchase_line->sub_unit_id = ! empty($data['sub_unit_id']) ? $data['sub_unit_id'] : null;
             $purchase_line->purchase_order_line_id = ! empty($data['purchase_order_line_id']) ? $data['purchase_order_line_id'] : null;
             $purchase_line->purchase_requisition_line_id = ! empty($data['purchase_requisition_line_id']) && $transaction->type == 'purchase_order' ? $data['purchase_requisition_line_id'] : null;
-
-            $purchase_line->mrp_inc_tax = $data['mrp_inc_tax']?? null;
-
-
-
-              $purchase_line->discount_on_mrp = $data['discount_on_mrp']?? null;
 
             if (! empty($data['secondary_unit_quantity'])) {
                 $purchase_line->secondary_unit_quantity = $this->num_uf($data['secondary_unit_quantity']);
@@ -1696,7 +1696,7 @@ class ProductUtil extends Util
             );
 
         if (! empty($price_group_id)) {
-            $query->addSelect('VGP.price_inc_tax as variation_group_price');
+            $query->addSelect(DB::raw('IF (VGP.price_type = "fixed", VGP.price_inc_tax, VGP.price_inc_tax * variations.sell_price_inc_tax / 100) as variation_group_price'));
         }
 
         if (in_array('lot', $search_fields)) {
@@ -2256,7 +2256,7 @@ class ProductUtil extends Util
 
     public function fixVariationStockMisMatch($business_id, $variation_id, $location_id, $stock)
     {
-        $vld = VariationLocationDetails::leftjoin(
+        $vld = VariationLocationDetails::join(
             'business_locations as bl',
             'bl.id',
             '=',

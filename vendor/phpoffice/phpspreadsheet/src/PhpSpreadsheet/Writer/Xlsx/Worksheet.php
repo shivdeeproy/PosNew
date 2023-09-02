@@ -681,7 +681,7 @@ class Worksheet extends WriterPart
                 $objWriter->writeAttribute('type', $conditional->getConditionType());
                 self::writeAttributeIf(
                     $objWriter,
-                    ($conditional->getConditionType() !== Conditional::CONDITION_DATABAR && $conditional->getNoFormatSet() === false),
+                    ($conditional->getConditionType() != Conditional::CONDITION_DATABAR),
                     'dxfId',
                     (string) $this->getParentWriter()->getStylesConditionalHashTable()->getIndexForHashCode($conditional->getHashCode())
                 );
@@ -1006,11 +1006,12 @@ class Worksheet extends WriterPart
         // Get row and column breaks
         $aRowBreaks = [];
         $aColumnBreaks = [];
-        foreach ($worksheet->getRowBreaks() as $cell => $break) {
-            $aRowBreaks[$cell] = $break;
-        }
-        foreach ($worksheet->getColumnBreaks() as $cell => $break) {
-            $aColumnBreaks[$cell] = $break;
+        foreach ($worksheet->getBreaks() as $cell => $breakType) {
+            if ($breakType == PhpspreadsheetWorksheet::BREAK_ROW) {
+                $aRowBreaks[] = $cell;
+            } elseif ($breakType == PhpspreadsheetWorksheet::BREAK_COLUMN) {
+                $aColumnBreaks[] = $cell;
+            }
         }
 
         // rowBreaks
@@ -1019,16 +1020,12 @@ class Worksheet extends WriterPart
             $objWriter->writeAttribute('count', (string) count($aRowBreaks));
             $objWriter->writeAttribute('manualBreakCount', (string) count($aRowBreaks));
 
-            foreach ($aRowBreaks as $cell => $break) {
+            foreach ($aRowBreaks as $cell) {
                 $coords = Coordinate::coordinateFromString($cell);
 
                 $objWriter->startElement('brk');
                 $objWriter->writeAttribute('id', $coords[1]);
                 $objWriter->writeAttribute('man', '1');
-                $rowBreakMax = $break->getMaxColOrRow();
-                if ($rowBreakMax >= 0) {
-                    $objWriter->writeAttribute('max', "$rowBreakMax");
-                }
                 $objWriter->endElement();
             }
 
@@ -1041,11 +1038,11 @@ class Worksheet extends WriterPart
             $objWriter->writeAttribute('count', (string) count($aColumnBreaks));
             $objWriter->writeAttribute('manualBreakCount', (string) count($aColumnBreaks));
 
-            foreach ($aColumnBreaks as $cell => $break) {
+            foreach ($aColumnBreaks as $cell) {
                 $coords = Coordinate::coordinateFromString($cell);
 
                 $objWriter->startElement('brk');
-                $objWriter->writeAttribute('id', (string) ((int) $coords[0] - 1));
+                $objWriter->writeAttribute('id', (string) (Coordinate::columnIndexFromString($coords[0]) - 1));
                 $objWriter->writeAttribute('man', '1');
                 $objWriter->endElement();
             }
@@ -1234,7 +1231,7 @@ class Worksheet extends WriterPart
             $objWriter->writeAttribute('ref', $cell->getCoordinate());
             $objWriter->writeAttribute('aca', '1');
             $objWriter->writeAttribute('ca', '1');
-            $objWriter->text(FunctionPrefix::addFunctionPrefixStripEquals($cellValue));
+            $objWriter->text(substr($cellValue, 1));
             $objWriter->endElement();
         } else {
             $objWriter->writeElement('f', FunctionPrefix::addFunctionPrefixStripEquals($cellValue));

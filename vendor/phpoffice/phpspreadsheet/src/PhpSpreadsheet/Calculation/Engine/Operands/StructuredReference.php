@@ -166,7 +166,7 @@ final class StructuredReference implements Operand
                 ->getCalculatedValue();
         }
 
-        $worksheet->getCell($cellReference);
+        $cell = $worksheet->getCell($cellReference);
 
         return $columns;
     }

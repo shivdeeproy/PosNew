@@ -47,7 +47,7 @@ final class CreateResponse implements Response
             $attributes['created'],
             $attributes['model'],
             $choices,
-            CreateResponseUsage::from($attributes['usage'])
+            CreateResponseUsage::from($attributes['usage']),
         );
     }
 

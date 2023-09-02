@@ -13,9 +13,6 @@ class FormattedNumber
 
     private const STRING_REGEXP_PERCENT = '~^(?:(?: *(?<PrefixedSign>[-+])? *\% *(?<PrefixedSign2>[-+])? *(?<PrefixedValue>[0-9]+\.?[0-9*]*(?:E[-+]?[0-9]*)?) *)|(?: *(?<PostfixedSign>[-+])? *(?<PostfixedValue>[0-9]+\.?[0-9]*(?:E[-+]?[0-9]*)?) *\% *))$~i';
 
-    // preg_quoted string for major currency symbols, with a %s for locale currency
-    private const CURRENCY_CONVERSION_LIST = '\$€£¥%s';
-
     private const STRING_CONVERSION_LIST = [
         [self::class, 'convertToNumberIfNumeric'],
         [self::class, 'convertToNumberIfFraction'],
@@ -48,10 +45,7 @@ class FormattedNumber
      */
     public static function convertToNumberIfNumeric(string &$operand): bool
     {
-        $thousandsSeparator = preg_quote(StringHelper::getThousandsSeparator());
-        $value = preg_replace(['/(\d)' . $thousandsSeparator . '(\d)/u', '/([+-])\s+(\d)/u'], ['$1$2', '$1$2'], trim($operand));
-        $decimalSeparator = preg_quote(StringHelper::getDecimalSeparator());
-        $value = preg_replace(['/(\d)' . $decimalSeparator . '(\d)/u', '/([+-])\s+(\d)/u'], ['$1.$2', '$1$2'], $value ?? '');
+        $value = preg_replace(['/(\d),(\d)/u', '/([+-])\s+(\d)/u'], ['$1$2', '$1$2'], trim($operand));
 
         if (is_numeric($value)) {
             $operand = (float) $value;
@@ -90,10 +84,7 @@ class FormattedNumber
      */
     public static function convertToNumberIfPercent(string &$operand): bool
     {
-        $thousandsSeparator = preg_quote(StringHelper::getThousandsSeparator());
-        $value = preg_replace('/(\d)' . $thousandsSeparator . '(\d)/u', '$1$2', trim($operand));
-        $decimalSeparator = preg_quote(StringHelper::getDecimalSeparator());
-        $value = preg_replace(['/(\d)' . $decimalSeparator . '(\d)/u', '/([+-])\s+(\d)/u'], ['$1.$2', '$1$2'], $value ?? '');
+        $value = preg_replace('/(\d),(\d)/u', '$1$2', $operand);
 
         $match = [];
         if ($value !== null && preg_match(self::STRING_REGEXP_PERCENT, $value, $match, PREG_UNMATCHED_AS_NULL)) {
@@ -115,12 +106,13 @@ class FormattedNumber
      */
     public static function convertToNumberIfCurrency(string &$operand): bool
     {
-        $currencyRegexp = self::currencyMatcherRegexp();
-        $thousandsSeparator = preg_quote(StringHelper::getThousandsSeparator());
-        $value = preg_replace('/(\d)' . $thousandsSeparator . '(\d)/u', '$1$2', $operand);
+        $quotedCurrencyCode = preg_quote(StringHelper::getCurrencyCode());
+
+        $value = preg_replace('/(\d),(\d)/u', '$1$2', $operand);
+        $regExp = '~^(?:(?: *(?<PrefixedSign>[-+])? *' . $quotedCurrencyCode . ' *(?<PrefixedSign2>[-+])? *(?<PrefixedValue>[0-9]+\.?[0-9*]*(?:E[-+]?[0-9]*)?) *)|(?: *(?<PostfixedSign>[-+])? *(?<PostfixedValue>[0-9]+\.?[0-9]*(?:E[-+]?[0-9]*)?) *' . $quotedCurrencyCode . ' *))$~ui';
 
         $match = [];
-        if ($value !== null && preg_match($currencyRegexp, $value, $match, PREG_UNMATCHED_AS_NULL)) {
+        if ($value !== null && preg_match($regExp, $value, $match, PREG_UNMATCHED_AS_NULL)) {
             //Determine the sign
             $sign = ($match['PrefixedSign'] ?? $match['PrefixedSign2'] ?? $match['PostfixedSign']) ?? '';
             //Cast to a float
@@ -130,13 +122,5 @@ class FormattedNumber
         }
 
         return false;
-    }
-
-    public static function currencyMatcherRegexp(): string
-    {
-        $currencyCodes = sprintf(self::CURRENCY_CONVERSION_LIST, preg_quote(StringHelper::getCurrencyCode()));
-        $decimalSeparator = preg_quote(StringHelper::getDecimalSeparator());
-
-        return '~^(?:(?: *(?<PrefixedSign>[-+])? *(?<PrefixedCurrency>[' . $currencyCodes . ']) *(?<PrefixedSign2>[-+])? *(?<PrefixedValue>[0-9]+[' . $decimalSeparator . ']?[0-9*]*(?:E[-+]?[0-9]*)?) *)|(?: *(?<PostfixedSign>[-+])? *(?<PostfixedValue>[0-9]+' . $decimalSeparator . '?[0-9]*(?:E[-+]?[0-9]*)?) *(?<PostfixedCurrency>[' . $currencyCodes . ']) *))$~ui';
     }
 }

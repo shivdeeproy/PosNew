@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace OpenAI\Transporters;
 
+use Closure;
 use JsonException;
 use OpenAI\Contracts\Transporter;
 use OpenAI\Exceptions\ErrorException;
@@ -12,8 +13,10 @@ use OpenAI\Exceptions\UnserializableResponse;
 use OpenAI\ValueObjects\Transporter\BaseUri;
 use OpenAI\ValueObjects\Transporter\Headers;
 use OpenAI\ValueObjects\Transporter\Payload;
+use OpenAI\ValueObjects\Transporter\QueryParams;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
+use Psr\Http\Message\ResponseInterface;
 
 /**
  * @internal
@@ -27,6 +30,8 @@ final class HttpTransporter implements Transporter
         private readonly ClientInterface $client,
         private readonly BaseUri $baseUri,
         private readonly Headers $headers,
+        private readonly QueryParams $queryParams,
+        private readonly Closure $streamHandler,
     ) {
         // ..
     }
@@ -36,7 +41,7 @@ final class HttpTransporter implements Transporter
      */
     public function requestObject(Payload $payload): array|string
     {
-        $request = $payload->toRequest($this->baseUri, $this->headers);
+        $request = $payload->toRequest($this->baseUri, $this->headers, $this->queryParams);
 
         try {
             $response = $this->client->sendRequest($request);
@@ -69,7 +74,7 @@ final class HttpTransporter implements Transporter
      */
     public function requestContent(Payload $payload): string
     {
-        $request = $payload->toRequest($this->baseUri, $this->headers);
+        $request = $payload->toRequest($this->baseUri, $this->headers, $this->queryParams);
 
         try {
             $response = $this->client->sendRequest($request);
@@ -91,5 +96,21 @@ final class HttpTransporter implements Transporter
         }
 
         return $contents;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function requestStream(Payload $payload): ResponseInterface
+    {
+        $request = $payload->toRequest($this->baseUri, $this->headers, $this->queryParams);
+
+        try {
+            $response = ($this->streamHandler)($request);
+        } catch (ClientExceptionInterface $clientException) {
+            throw new TransporterException($clientException);
+        }
+
+        return $response;
     }
 }
